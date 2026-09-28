@@ -13,7 +13,6 @@
 python3 -m http.server 4173 --bind 127.0.0.1
 node scripts/verify.mjs
 node scripts/backend-smoke.mjs
-node scripts/e2e.mjs
 ```
 
 `backend-smoke.mjs`는 임시 일정을 만들고 삭제합니다. 브라우저 검증은 오르카의 에고라이트를 사용합니다.
