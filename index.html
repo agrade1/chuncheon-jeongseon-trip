@@ -4,69 +4,46 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>춘천 · 정선 2박 3일</title>
-  <meta name="description" content="10월 16~18일 춘천·정선 여행 일정과 숙소 권역 추천">
+  <title>춘천 · 정선 2박 3일 일정</title>
+  <meta name="description" content="친구들과 함께 보는 춘천·정선 여행 일정과 이동 경로">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <a class="skip-link" href="#schedule">일정으로 건너뛰기</a>
-  <header class="hero">
-    <div class="hero__inner">
-      <p class="eyebrow">2026. 10. 16 — 18 · 금–일</p>
-      <h1>춘천에서 만나,<br><em>정선에서 놀자.</em></h1>
-      <p class="hero__lead">닭갈비 → 강원랜드 → 바베큐.<br>다음 날은 골프와 강원도 풍경.</p>
-      <div class="hero__chips" aria-label="여행 핵심 정보">
-        <span>4명 · 차량 2대</span><span>첫날 12시 춘천 합류</span><span>정선 2박</span>
-      </div>
-    </div>
-    <div class="hero__route" aria-hidden="true"><span>춘천</span><i></i><span>정선</span><i></i><span>각자 집</span></div>
-  </header>
-
-  <main>
-    <section class="day-picks" aria-labelledby="at-glance">
-      <div class="section-heading"><p class="eyebrow">한눈에 보기</p><h2 id="at-glance">3일 동선</h2></div>
-      <div class="day-picks__grid" id="day-picks"></div>
-      <nav class="quick-jump" aria-label="바로 이동">
-        <a href="#choices">관광 후보 보기 <span aria-hidden="true">↗</span></a>
-        <a href="#stay">숙소 위치 보기 <span aria-hidden="true">↗</span></a>
-      </nav>
-    </section>
-
-    <section class="workspace" id="schedule" aria-labelledby="schedule-heading">
-      <div class="schedule-panel">
-        <div class="section-heading section-heading--inline"><div><p class="eyebrow">우리 일정</p><h2 id="schedule-heading">날짜별로 보기</h2></div><span class="small-hint">시간은 12시 합류만 확정</span></div>
+  <main id="schedule">
+    <header class="page-head">
+      <div><p class="eyebrow">2026. 10. 16–18 · 4명 · 차량 2대</p><h1>춘천 · 정선 2박 3일</h1><p class="page-head__sub">장소를 정하면 지도에 동선이 이어져요.</p></div>
+      <span class="sync-status" id="sync-status" role="status">일정 불러오는 중</span>
+    </header>
+    <div class="workspace">
+      <section class="schedule-panel" aria-labelledby="schedule-heading">
+        <div class="panel-head"><div><p class="eyebrow">우리 일정</p><h2 id="schedule-heading">일정</h2></div><button type="button" class="primary-button" id="add-stop" hidden>＋ 일정 추가</button></div>
         <div class="day-tabs" role="tablist" aria-label="날짜 선택" id="day-tabs"></div>
+        <div class="editor" id="editor" hidden>
+          <div class="editor__head"><strong id="editor-heading">일정 추가</strong><button type="button" class="text-button" id="cancel-edit">취소</button></div>
+          <form id="stop-form">
+            <label>일정 이름 <input name="title" maxlength="100" required placeholder="예: 점심 · 닭갈비"></label>
+            <div class="field-row"><label>날짜 <select name="day_index"><option value="0">1일차 · 금</option><option value="1">2일차 · 토</option><option value="2">3일차 · 일</option></select></label><label>시간 <input name="time_label" maxlength="30" placeholder="예: 12:00"></label></div>
+            <label>메모 <textarea name="note" maxlength="500" rows="2" placeholder="정해진 내용만 간단히"></textarea></label>
+            <div class="field-row"><label>일정 유형 <select name="status"><option value="fixed">기본 일정</option><option value="optional">선택 후보</option></select></label><label class="check-label"><input name="include_in_route" type="checkbox" checked> 경로에 포함</label></div>
+            <div class="place-box"><label>장소 이름 <input name="place_label" maxlength="150" placeholder="예: 강원랜드 또는 숙소 미정"></label><div class="search-row"><input id="place-query" aria-label="지도 장소 검색" placeholder="지도에서 찾을 장소 검색"><button type="button" class="secondary-button" id="search-place">검색</button></div><p class="microcopy">검색 결과를 고르거나 지도에서 직접 위치를 찍어 주세요.</p><div class="search-results" id="search-results" aria-live="polite"></div><div class="location-row"><span id="selected-location">위치 미지정</span><button type="button" class="secondary-button" id="pick-on-map">지도에서 찍기</button><button type="button" class="text-button" id="clear-location">위치 지우기</button></div></div>
+            <p class="form-error" id="form-error" role="alert" hidden></p>
+            <button class="primary-button editor__save" type="submit">저장하기</button>
+          </form>
+        </div>
         <div id="day-content" role="tabpanel"></div>
-      </div>
-      <aside class="map-panel" aria-labelledby="map-heading">
-        <div class="map-panel__head"><div><p class="eyebrow">이동 감 잡기</p><h2 id="map-heading">오늘의 동선</h2></div><span class="map-panel__day" id="map-day"></span></div>
-        <div class="map-frame"><div class="map" id="map" aria-label="날짜별 개략 위치 지도"></div><svg class="map-fallback" id="map-fallback" viewBox="0 0 600 400" role="img" aria-label="춘천과 정선의 개략 위치도" hidden></svg></div>
-        <p class="map-caption">원은 장소가 정해지지 않은 권역, 점은 확인된 장소입니다. 선은 실제 도로가 아닙니다.</p>
+      </section>
+      <aside class="map-panel" aria-labelledby="map-heading" id="map-panel">
+        <div class="panel-head"><div><p class="eyebrow">이동 경로</p><h2 id="map-heading">지도</h2></div><span class="map-panel__day" id="map-day"></span></div>
+        <div class="map-frame"><div class="map" id="map" aria-label="날짜별 방문 순서와 도로 경로 지도"></div><div class="map-fallback" id="map-fallback" hidden>지도를 불러올 수 없어요.</div></div>
+        <p class="map-caption" id="map-caption">위치가 정해진 장소만 지도에 표시돼요.</p>
         <div class="map-detail" id="map-detail"></div>
+        <p class="map-credit">지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · 경로 <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> · 검색 <a href="https://photon.komoot.io/" target="_blank" rel="noopener">Photon</a></p>
       </aside>
-    </section>
-
-    <section class="choices" id="choices" aria-labelledby="choices-heading">
-      <div class="section-heading"><p class="eyebrow">시간·체력 봐서</p><h2 id="choices-heading">관광은 이렇게 고르자</h2></div>
-      <div class="choice-grid">
-        <article class="choice choice--primary"><div class="choice__top"><span class="choice__icon" aria-hidden="true">↗</span><span class="pill">가까운 선택지</span></div><h3>만항재 드라이브</h3><p>차로 고개까지 올라가 풍경을 보는 코스. 등산 없이 다녀올 수 있어 둘째 날 골프 뒤에 넣기 좋습니다.</p><a href="https://jeongseon.go.kr/tour/jeongseontour/travelstory/manhang" target="_blank" rel="noopener">정선 관광 안내 보기 <span aria-hidden="true">↗</span></a></article>
-        <article class="choice"><div class="choice__top"><span class="choice__icon" aria-hidden="true">✳</span><span class="pill pill--soft">장소부터 확인</span></div><h3>루지 또는 체험</h3><p>루지는 대화에 나온 후보예요. 정선 숙소와 골프장 사이에서 가능한 시설을 찾은 뒤, 이동이 길면 가까운 체험으로 바꿔요.</p><span class="choice__foot">시설·운영시간 미정</span></article>
-        <article class="choice"><div class="choice__top"><span class="choice__icon" aria-hidden="true">△</span><span class="pill pill--soft">긴 우회</span></div><h3>강릉 안반데기</h3><p>가보고 싶은 자연 명소지만 정선 숙소 기준으로 우회가 큽니다. 첫날 시간이 넉넉하거나 둘째 날 골프를 짧게 마칠 때만 고려해요.</p><span class="choice__foot">등산 코스는 일정에 넣지 않음</span></article>
-      </div>
-    </section>
-
-    <section class="stay" id="stay" aria-labelledby="stay-heading">
-      <div class="stay__intro"><p class="eyebrow">숙소는 여기부터</p><h2 id="stay-heading">사북·고한 생활권 추천</h2><p>첫날 강원랜드 뒤 장보고 숙소에서 바베큐, 둘째 날에도 장을 보고 돌아오는 흐름에 맞습니다.</p><p class="stay__condition">골프 장소가 사북·고한 근처일 때의 추천입니다. 필드 골프라면 골프장부터 확정한 뒤 숙소 위치를 다시 고르세요.</p></div>
-      <div class="stay__content">
-        <div class="stay__rank"><span class="stay__number">1</span><div><h3>사북읍 쪽 바베큐 가능 펜션</h3><p>강원랜드, 장보기, 식당, 스크린골프 접근을 우선할 때. 사북역·사북시장 생활권부터 찾아보세요.</p></div></div>
-        <div class="stay__rank"><span class="stay__number">2</span><div><h3>고한읍 쪽 바베큐 가능 펜션</h3><p>만항재 드라이브와 하이원 주변 분위기를 더 원할 때. 고한역·하이원 입구 생활권이 차선입니다.</p></div></div>
-        <div class="stay__check"><strong>예약 전에 확인</strong><span>4명 · 2박 연박</span><span>바베큐 시설과 이용 마감</span><span>차량 2대 주차</span><span>장보기 동선</span></div>
-        <a class="stay__link" href="https://www.jeongseon.go.kr/tour/jeongseontour/accommodation" target="_blank" rel="noopener">정선군 숙박 목록에서 사북읍·고한읍 보기 <span aria-hidden="true">↗</span></a>
-      </div>
-    </section>
+    </div>
+    <details class="trip-notes"><summary>숙소·관광 참고</summary><div><p><strong>숙소:</strong> 강원랜드 뒤 장보고 바베큐하는 일정이라 사북읍 쪽을 먼저, 만항재를 더 보고 싶다면 고한읍 쪽을 보세요. 골프장을 정하면 다시 동선을 비교하세요.</p><p><strong>관광:</strong> 만항재는 차로 풍경을 볼 수 있는 선택 후보예요. 루지 시설은 아직 미정이고, 안반데기는 이동이 길어 시간이 남을 때만 고려하면 됩니다.</p></div></details>
   </main>
-  <footer class="footer"><p>일정은 대화와 이번에 정한 흐름을 반영했습니다. 장소·예약·12시 외 시각은 미정입니다.</p><p>지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap 기여자</a></p></footer>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>

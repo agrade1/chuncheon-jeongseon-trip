@@ -1,8 +1,8 @@
 // Chrome headless smoke test and screenshots. Start a local server on port 8765 first.
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const URL_ = process.env.APP_URL || 'http://127.0.0.1:8765/';
+const URL_ = process.env.APP_URL || 'http://127.0.0.1:4173/';
 const OFFLINE = process.argv.includes('--offline');
 const OUT = process.env.OUT_DIR || 'e2e-out';
 mkdirSync(OUT, { recursive: true });
@@ -29,12 +29,12 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 1000, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: URL_ }); await sleep(2300);
   console.log('PAGE', await evaluate(`({url: location.href, ready: document.readyState, title: document.title, body: document.body?.innerText.slice(0, 180)})`));
-  check(await evaluate(`document.querySelectorAll('.day-pick').length`) === 3, '3일 카드 렌더링');
-  check(await evaluate(`document.querySelectorAll('.day-pick__action').length`) === 3, '날짜 카드에 상세 일정 보기 표시');
-  check(await evaluate(`document.querySelectorAll('.quick-jump a').length`) === 2, '관광·숙소 바로 이동 제공');
-  check(await evaluate(`document.querySelector('.stay__condition').compareDocumentPosition(document.querySelector('.stay__rank')) & Node.DOCUMENT_POSITION_FOLLOWING`), '숙소 추천 조건을 순위보다 먼저 표시');
+  check(await evaluate(`document.querySelectorAll('.day-tab').length`) === 3, '3일 탭 렌더링');
+  check(await evaluate(`!document.querySelector('.hero')`), '일정 화면에서 히어로 제거');
+  check(await evaluate(`document.getElementById('add-stop').hidden`), '일반 링크는 보기 전용');
+  check((await evaluate(`document.getElementById('sync-status').textContent`)).includes('공유 일정'), '공유 데이터 로드');
   check((await evaluate(`document.querySelector('#day-content').textContent`)).includes('12시까지 춘천 합류'), '첫날 춘천 합류 표시');
-  if (OFFLINE) check(await evaluate(`!document.getElementById('map-fallback').hidden && document.getElementById('map-fallback').textContent.includes('권역')`), '오프라인 개략도 표시');
+  if (OFFLINE) check(await evaluate(`!document.getElementById('map-fallback').hidden`), '지도 로딩 실패 안내');
   await shot('desktop-day1');
   await evaluate(`document.getElementById('day-tab-1').click()`);
   check((await evaluate(`document.querySelector('#day-content').textContent`)).includes('만항재 드라이브'), '둘째 날 선택 관광 표시');
@@ -44,6 +44,31 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }); await sleep(400);
   check((await evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`)), '모바일 가로 넘침 없음');
   await shot('mobile-day3');
+  if (!OFFLINE) {
+    const token = readFileSync('.trip-edit-token', 'utf8').trim();
+    await send('Page.navigate', { url: 'about:blank' });
+    await send('Page.navigate', { url: URL_ + '#edit=' + token }); await sleep(1800);
+    check(await evaluate(`!document.getElementById('add-stop').hidden`), '편집 링크에 추가 버튼 표시');
+    await evaluate(`document.getElementById('add-stop').click()`);
+    check(await evaluate(`!document.getElementById('editor').hidden`), '추가 폼 열림');
+    await evaluate(`document.getElementById('place-query').value = '강원랜드'; document.getElementById('search-place').click()`);
+    await sleep(1800);
+    check(await evaluate(`document.querySelectorAll('#search-results button').length > 0`), '장소 검색 결과 표시');
+    await shot('mobile-editor');
+    const testTitle = 'UI 검증용 임시 일정 ' + Date.now();
+    await evaluate(`document.querySelector('#search-results button').click(); document.querySelector('[name=title]').value = ${JSON.stringify(testTitle)}; document.getElementById('stop-form').requestSubmit()`);
+    await sleep(1600);
+    check((await evaluate(`document.getElementById('day-content').textContent`)).includes(testTitle), 'UI에서 추가한 일정 표시');
+    await sleep(1200);
+    check((await evaluate(`document.getElementById('map-caption').textContent`)).includes('도로 경로 약'), '방문 순서대로 도로 경로 표시');
+    const key = 'sb_publishable_EMOU9uf0ikNXGXuOFMQrnA__UaUqrB9';
+    const rows = await fetch('https://aqhrtipddlxejwjpxdrf.supabase.co/rest/v1/trip_stops?title=eq.' + encodeURIComponent(testTitle) + '&select=id,lat,lon', { headers: { apikey: key } }).then(r => r.json());
+    check(rows.length === 1 && rows[0].lat != null && rows[0].lon != null, '장소 좌표가 공유 데이터에 저장');
+    if (rows[0]?.id) {
+      const deleted = await fetch('https://aqhrtipddlxejwjpxdrf.supabase.co/functions/v1/trip-api', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: key, 'x-trip-edit-token': token }, body: JSON.stringify({ action: 'delete', id: rows[0].id }) });
+      check(deleted.ok, '검증 일정 정리');
+    }
+  }
 } catch (error) { console.error(error); fails.push('crash'); }
 finally { try { ws?.close(); } catch {} chrome.kill('SIGKILL'); }
 console.log(fails.length ? 'E2E FAILED' : 'E2E OK');
