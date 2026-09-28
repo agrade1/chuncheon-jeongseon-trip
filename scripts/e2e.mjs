@@ -1,6 +1,6 @@
 // Chrome headless smoke test and screenshots. Start a local server on port 8765 first.
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const URL_ = process.env.APP_URL || 'http://127.0.0.1:4173/';
 const OFFLINE = process.argv.includes('--offline');
@@ -31,8 +31,8 @@ try {
   console.log('PAGE', await evaluate(`({url: location.href, ready: document.readyState, title: document.title, body: document.body?.innerText.slice(0, 180)})`));
   check(await evaluate(`document.querySelectorAll('.day-tab').length`) === 3, '3일 탭 렌더링');
   check(await evaluate(`!document.querySelector('.hero')`), '일정 화면에서 히어로 제거');
-  check(await evaluate(`document.getElementById('add-stop').hidden`), '일반 링크는 보기 전용');
-  check((await evaluate(`document.getElementById('sync-status').textContent`)).includes('공유 일정'), '공유 데이터 로드');
+  check(await evaluate(`!document.getElementById('add-stop').hidden`), '공유 링크에서 일정 추가 가능');
+  check((await evaluate(`document.getElementById('sync-status').textContent`)).includes('편집 가능'), '공유 데이터 로드');
   check((await evaluate(`document.querySelector('#day-content').textContent`)).includes('12시까지 춘천 합류'), '첫날 춘천 합류 표시');
   if (OFFLINE) check(await evaluate(`!document.getElementById('map-fallback').hidden`), '지도 로딩 실패 안내');
   await shot('desktop-day1');
@@ -45,10 +45,9 @@ try {
   check((await evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`)), '모바일 가로 넘침 없음');
   await shot('mobile-day3');
   if (!OFFLINE) {
-    const token = readFileSync('.trip-edit-token', 'utf8').trim();
     await send('Page.navigate', { url: 'about:blank' });
-    await send('Page.navigate', { url: URL_ + '#edit=' + token }); await sleep(1800);
-    check(await evaluate(`!document.getElementById('add-stop').hidden`), '편집 링크에 추가 버튼 표시');
+    await send('Page.navigate', { url: URL_ }); await sleep(1800);
+    check(await evaluate(`!document.getElementById('add-stop').hidden`), '공유 링크에 추가 버튼 표시');
     await evaluate(`document.getElementById('add-stop').click()`);
     check(await evaluate(`!document.getElementById('editor').hidden`), '추가 폼 열림');
     await evaluate(`document.getElementById('place-query').value = '강원랜드'; document.getElementById('search-place').click()`);
@@ -65,7 +64,7 @@ try {
     const rows = await fetch('https://aqhrtipddlxejwjpxdrf.supabase.co/rest/v1/trip_stops?title=eq.' + encodeURIComponent(testTitle) + '&select=id,lat,lon', { headers: { apikey: key } }).then(r => r.json());
     check(rows.length === 1 && rows[0].lat != null && rows[0].lon != null, '장소 좌표가 공유 데이터에 저장');
     if (rows[0]?.id) {
-      const deleted = await fetch('https://aqhrtipddlxejwjpxdrf.supabase.co/functions/v1/trip-api', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: key, 'x-trip-edit-token': token }, body: JSON.stringify({ action: 'delete', id: rows[0].id }) });
+      const deleted = await fetch('https://aqhrtipddlxejwjpxdrf.supabase.co/functions/v1/trip-api', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: key, Origin: 'https://agrade1.github.io' }, body: JSON.stringify({ action: 'delete', id: rows[0].id }) });
       check(deleted.ok, '검증 일정 정리');
     }
   }

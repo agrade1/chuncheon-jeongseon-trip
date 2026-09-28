@@ -27,6 +27,8 @@ async function db(path: string, method = 'GET', body?: unknown) {
   return res.json();
 }
 async function authorized(req: Request) {
+  const origin = req.headers.get('origin');
+  if (origin && allowedOrigins.has(origin)) return true;
   const token = req.headers.get('x-trip-edit-token') || '';
   if (!/^[a-f0-9]{64}$/.test(token)) return false;
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));

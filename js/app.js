@@ -2,8 +2,7 @@
   'use strict';
   var apiBase = 'https://aqhrtipddlxejwjpxdrf.supabase.co';
   var publishableKey = 'sb_publishable_EMOU9uf0ikNXGXuOFMQrnA__UaUqrB9';
-  var editToken = new URLSearchParams(location.hash.slice(1)).get('edit') || '';
-  var canEdit = /^[a-f0-9]{64}$/.test(editToken);
+  var canEdit = true;
   var selectedDay = 0, stops = [], map = null, mapLayers = [], pendingPin = null;
   var editingId = null, draftLocation = null, picking = false, routeSerial = 0;
   var routeCache = new Map();
@@ -50,7 +49,7 @@
   async function callApi(payload) {
     var res = await fetch(apiBase + '/functions/v1/trip-api', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: publishableKey, ...(payload.action === 'search' ? {} : { 'x-trip-edit-token': editToken }) },
+      headers: { 'Content-Type': 'application/json', apikey: publishableKey },
       body: JSON.stringify(payload)
     });
     var body = await res.json().catch(function () { return {}; });
