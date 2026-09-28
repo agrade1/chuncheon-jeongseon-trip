@@ -3,7 +3,7 @@
   var apiBase = 'https://aqhrtipddlxejwjpxdrf.supabase.co';
   var publishableKey = 'sb_publishable_EMOU9uf0ikNXGXuOFMQrnA__UaUqrB9';
   var canEdit = true;
-  var selectedDay = 0, stops = [], map = null, mapLayers = [], pendingPin = null;
+  var selectedDay = 0, stops = [], map = null, mapLayers = [], pendingPin = null, mapReady = false;
   var editingId = null, draftLocation = null, picking = false, routeSerial = 0;
   var routeCache = new Map();
   var dayInfo = [
@@ -124,17 +124,36 @@
     wrap.appendChild(el('p', 'day-tip', day.tip));
   }
   function clearMapLayers() {
-    mapLayers.forEach(function (layer) { map.removeLayer(layer); });
+    mapLayers.forEach(function (layer) { layer.setMap(null); });
     mapLayers = [];
-    if (pendingPin) { map.removeLayer(pendingPin); pendingPin = null; }
+    if (pendingPin) { pendingPin.setMap(null); pendingPin = null; }
   }
-  function markerIcon(number, optional) {
-    return L.divIcon({ className: '', html: '<span class="number-pin' + (optional ? ' is-optional' : '') + '">' + number + '</span>', iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -25] });
+  function latLng(lat, lon) { return new kakao.maps.LatLng(lat, lon); }
+  function pin(number, optional, lat, lon, title, stop) {
+    var content = el('button', 'number-pin' + (optional ? ' is-optional' : ''), String(number));
+    content.type = 'button';
+    content.title = title;
+    content.setAttribute('aria-label', number + '번 ' + title + ' 수정');
+    if (stop) content.addEventListener('click', function (event) { event.stopPropagation(); openEditor(stop); });
+    return new kakao.maps.CustomOverlay({ map: map, content: content, position: latLng(lat, lon), xAnchor: .5, yAnchor: 1, clickable: true, zIndex: 3 });
   }
   function showDraftPin() {
     if (!map) return;
-    if (pendingPin) { map.removeLayer(pendingPin); pendingPin = null; }
-    if (draftLocation) pendingPin = L.marker([draftLocation.lat, draftLocation.lon], { icon: L.divIcon({ className: '', html: '<span class="number-pin">✓</span>', iconSize: [30, 30], iconAnchor: [15, 30] }) }).addTo(map);
+    if (pendingPin) { pendingPin.setMap(null); pendingPin = null; }
+    if (draftLocation) pendingPin = pin('✓', false, draftLocation.lat, draftLocation.lon, '선택한 위치', null);
+  }
+  function fitPlaces(places) {
+    if (!places.length) {
+      map.setCenter(selectedDay === 0 ? latLng(37.55, 128.2) : latLng(37.21, 128.82));
+      map.setLevel(selectedDay === 0 ? 10 : 6);
+    } else if (places.length === 1) {
+      map.setCenter(latLng(places[0].lat, places[0].lon));
+      map.setLevel(6);
+    } else {
+      var bounds = new kakao.maps.LatLngBounds();
+      places.forEach(function (place) { bounds.extend(latLng(place.lat, place.lon)); });
+      map.setBounds(bounds, 45, 45, 45, 45);
+    }
   }
   async function drawRoadRoute(points, serial) {
     var key = points.map(function (x) { return x.lon + ',' + x.lat; }).join(';');
@@ -148,13 +167,14 @@
         route = body.routes[0]; routeCache.set(key, route);
       }
       if (serial !== routeSerial || !map) return;
-      var line = L.geoJSON(route.geometry, { style: { color: '#ed7642', weight: 5, opacity: .9 } }).addTo(map);
+      var path = route.geometry.coordinates.map(function (coord) { return latLng(coord[1], coord[0]); });
+      var line = new kakao.maps.Polyline({ map: map, path: path, strokeWeight: 5, strokeColor: '#ed7642', strokeOpacity: .9, zIndex: 1 });
       mapLayers.push(line);
       byId('map-caption').textContent = '선택된 ' + points.length + '곳 · 도로 경로 약 ' + Math.round(route.distance / 1000) + 'km · 실시간 교통 미반영';
-      map.fitBounds(line.getBounds(), { padding: [28, 28], maxZoom: 12 });
+      fitPlaces(route.geometry.coordinates.map(function (coord) { return { lat: coord[1], lon: coord[0] }; }));
     } catch (_) {
       if (serial !== routeSerial || !map) return;
-      mapLayers.push(L.polyline(points.map(function (x) { return [x.lat, x.lon]; }), { color: '#ed7642', weight: 3, dashArray: '7 7' }).addTo(map));
+      mapLayers.push(new kakao.maps.Polyline({ map: map, path: points.map(function (x) { return latLng(x.lat, x.lon); }), strokeWeight: 3, strokeColor: '#ed7642', strokeStyle: 'dash' }));
       byId('map-caption').textContent = '도로 경로를 불러오지 못해 직선으로 표시했어요. 실제 이동 거리가 아닙니다.';
     }
   }
@@ -165,17 +185,19 @@
     var routePoints = located.filter(function (x) { return x.stop.include_in_route; }).map(function (x) { return x.stop; });
     var detail = byId('map-detail'); clear(detail);
     detail.appendChild(el('strong', '', located.length + '곳 위치 지정 · ' + (list.length - located.length) + '곳 미정'));
-    detail.appendChild(el('p', '', '핀 번호는 일정 순서예요. 선택 후보는 “경로에 포함”을 켜면 선에 연결됩니다.'));
-    byId('map-caption').textContent = routePoints.length < 2 ? '경로를 보려면 장소 위치를 2곳 이상 지정해 주세요.' : '도로 경로 계산 중…';
-    if (!window.L) { byId('map').hidden = true; byId('map-fallback').hidden = false; return; }
+    detail.appendChild(el('p', '', '핀 번호는 일정 순서예요. 핀을 누르면 수정하고, 빈 지도를 누르면 새 일정을 추가할 수 있어요.'));
+    byId('map-caption').textContent = routePoints.length < 2 ? '도로 경로는 위치가 정해진 장소 2곳부터 보여요.' : '도로 경로 계산 중…';
+    if (!mapReady) { byId('map').hidden = true; byId('map-fallback').hidden = false; return; }
+    byId('map').hidden = false;
     byId('map-fallback').hidden = true;
     if (!map) {
-      map = L.map('map', { scrollWheelZoom: false, zoomControl: false });
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 18 }).addTo(map);
-      map.on('click', function (event) {
-        if (!picking) return;
-        draftLocation = { lat: Number(event.latlng.lat.toFixed(6)), lon: Number(event.latlng.lng.toFixed(6)) };
+      map = new kakao.maps.Map(byId('map'), { center: latLng(37.21, 128.82), level: 8 });
+      map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+      kakao.maps.event.addListener(map, 'click', function (event) {
+        if (!canEdit) return;
+        var picked = { lat: Number(event.latLng.getLat().toFixed(6)), lon: Number(event.latLng.getLng().toFixed(6)) };
+        if (byId('editor').hidden) openEditor(null);
+        draftLocation = picked;
         picking = false; byId('map').classList.remove('is-picking'); byId('pick-on-map').textContent = '지도에서 찍기';
         updateLocation(); showDraftPin(); byId('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -184,15 +206,12 @@
     var serial = routeSerial;
     clearMapLayers();
     located.forEach(function (x) {
-      var marker = L.marker([x.stop.lat, x.stop.lon], { icon: markerIcon(x.number, x.stop.status === 'optional') }).addTo(map);
-      marker.bindPopup(x.number + '. ' + x.stop.title.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
-      mapLayers.push(marker);
+      mapLayers.push(pin(x.number, x.stop.status === 'optional', x.stop.lat, x.stop.lon, x.stop.title, x.stop));
     });
-    if (located.length) map.fitBounds(located.map(function (x) { return [x.stop.lat, x.stop.lon]; }), { padding: [40, 40], maxZoom: 12 });
-    else map.setView(selectedDay === 0 ? [37.55, 128.2] : [37.21, 128.82], selectedDay === 0 ? 8 : 11);
+    fitPlaces(located.map(function (x) { return x.stop; }));
     if (routePoints.length >= 2) drawRoadRoute(routePoints, serial);
     if (!byId('editor').hidden) showDraftPin();
-    setTimeout(function () { map.invalidateSize(); }, 0);
+    setTimeout(function () { map.relayout(); }, 0);
   }
   function render() { renderTabs(); renderDay(); renderMap(); }
   function updateLocation() {
@@ -203,7 +222,7 @@
     editingId = null; draftLocation = null; picking = false;
     byId('map').classList.remove('is-picking');
     byId('pick-on-map').textContent = '지도에서 찍기';
-    if (map && pendingPin) { map.removeLayer(pendingPin); pendingPin = null; }
+    if (map && pendingPin) { pendingPin.setMap(null); pendingPin = null; }
   }
   function openEditor(stop) {
     if (!canEdit) return;
@@ -262,18 +281,26 @@
     var query = byId('place-query').value.trim(), results = byId('search-results');
     clear(results);
     if (query.length < 2) { results.appendChild(el('p', '', '장소 이름을 2자 이상 입력해 주세요.')); return; }
+    if (!mapReady) { results.appendChild(el('p', '', '카카오 지도를 불러온 뒤 다시 검색해 주세요.')); return; }
     results.appendChild(el('p', '', '검색 중…'));
     var button = byId('search-place'); button.disabled = true;
     try {
-      var body = await callApi({ action: 'search', query: query }); clear(results);
-      if (!body.results.length) results.appendChild(el('p', '', '결과가 없어요. 지도에서 직접 찍을 수 있어요.'));
-      body.results.forEach(function (place) {
-        var item = el('button', '', place.name); item.type = 'button';
+      var places = await new Promise(function (resolve, reject) {
+        new kakao.maps.services.Places().keywordSearch(query, function (data, status) {
+          if (status === kakao.maps.services.Status.OK) resolve(data);
+          else if (status === kakao.maps.services.Status.ZERO_RESULT) resolve([]);
+          else reject(new Error('카카오 장소 검색에 연결하지 못했어요. 다시 시도해 주세요.'));
+        }, { size: 10 });
+      });
+      clear(results);
+      if (!places.length) results.appendChild(el('p', '', '결과가 없어요. 지도에서 직접 찍을 수 있어요.'));
+      places.forEach(function (place) {
+        var item = el('button', '', place.place_name + ' · ' + (place.road_address_name || place.address_name)); item.type = 'button';
         item.addEventListener('click', function () {
-          draftLocation = { lat: place.lat, lon: place.lon };
-          byId('stop-form').elements.place_label.value = place.name.split(' · ')[0];
+          draftLocation = { lat: Number(place.y), lon: Number(place.x) };
+          byId('stop-form').elements.place_label.value = place.place_name;
           updateLocation(); showDraftPin();
-          if (map) map.setView([place.lat, place.lon], 14);
+          if (map) { map.setCenter(latLng(draftLocation.lat, draftLocation.lon)); map.setLevel(4); }
           clear(results);
         });
         results.appendChild(item);
@@ -294,5 +321,8 @@
     if (picking) byId('map-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
   byId('clear-location').addEventListener('click', function () { draftLocation = null; updateLocation(); showDraftPin(); });
+  if (window.kakao && window.kakao.maps) {
+    window.kakao.maps.load(function () { mapReady = true; renderMap(); });
+  }
   loadStops();
 })();

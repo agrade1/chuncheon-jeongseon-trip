@@ -6,8 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>춘천 · 정선 2박 3일 일정</title>
   <meta name="description" content="친구들과 함께 보는 춘천·정선 여행 일정과 이동 경로">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/styles.css?v=20260928b">
+  <link rel="stylesheet" href="css/styles.css?v=20260928d">
 </head>
 <body>
   <a class="skip-link" href="#schedule">일정으로 건너뛰기</a>
@@ -36,16 +35,16 @@
       </section>
       <aside class="map-panel" aria-labelledby="map-heading" id="map-panel">
         <div class="panel-head"><div><p class="eyebrow">이동 경로</p><h2 id="map-heading">지도</h2></div><span class="map-panel__day" id="map-day"></span></div>
-        <div class="map-frame"><div class="map" id="map" aria-label="날짜별 방문 순서와 도로 경로 지도"></div><div class="map-fallback" id="map-fallback" hidden>지도를 불러올 수 없어요.</div></div>
+        <div class="map-frame"><div class="map" id="map" aria-label="날짜별 방문 순서와 도로 경로 지도"></div><div class="map-fallback" id="map-fallback" hidden>카카오 지도를 불러올 수 없어요. 일정은 계속 편집할 수 있습니다.</div></div>
         <p class="map-caption" id="map-caption">위치가 정해진 장소만 지도에 표시돼요.</p>
         <div class="map-detail" id="map-detail"></div>
-        <p class="map-credit">지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · 경로 <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> · 검색 <a href="https://photon.komoot.io/" target="_blank" rel="noopener">Photon</a></p>
+        <p class="map-credit">지도·장소 검색 <a href="https://map.kakao.com/" target="_blank" rel="noopener">카카오맵</a> · 도로 경로 <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a></p>
       </aside>
     </div>
     <details class="trip-notes"><summary>숙소·관광 참고</summary><div><p><strong>숙소:</strong> 강원랜드 뒤 장보고 바베큐하는 일정이라 사북읍 쪽을 먼저, 만항재를 더 보고 싶다면 고한읍 쪽을 보세요. 골프장을 정하면 다시 동선을 비교하세요.</p><p><strong>관광:</strong> 만항재는 차로 풍경을 볼 수 있는 선택 후보예요. 루지 시설은 아직 미정이고, 안반데기는 이동이 길어 시간이 남을 때만 고려하면 됩니다.</p></div></details>
   </main>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=9541fc4d5be5eda04c31c2b7e21b8dc2&libraries=services&autoload=false"></script>
   <script src="js/data.js?v=20260928b"></script>
-  <script src="js/app.js?v=20260928c"></script>
+  <script src="js/app.js?v=20260928d"></script>
 </body>
 </html>
