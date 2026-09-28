@@ -23,7 +23,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 - 일정: 그룹 대화와 이번 요청. 카카오톡 원문과 개인 정보는 앱에 포함하지 않았습니다.
 - 만항재: [정선군 관광 안내](https://jeongseon.go.kr/tour/jeongseontour/travelstory/manhang)
 - 숙소 검색 권역: [정선군 숙박 목록](https://www.jeongseon.go.kr/tour/jeongseontour/accommodation)
-- 지도 핀: 미정 장소는 권역의 대표 위치이며, 지도 선은 실제 도로 경로가 아닙니다.
+- 지도 원: 미정 장소의 권역을 뜻합니다. 점은 확인된 장소이며, 지도 선은 실제 도로 경로가 아닙니다.
 - 디자인 참고: [Wanderlog의 일정·지도 병치](https://wanderlog.com/)를 출발점으로, 이번 여행은 날짜 요약 카드와 짧은 일정 행을 우선했습니다.
 
 ## 확인

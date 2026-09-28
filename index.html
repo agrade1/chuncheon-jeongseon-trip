@@ -27,6 +27,10 @@
     <section class="day-picks" aria-labelledby="at-glance">
       <div class="section-heading"><p class="eyebrow">한눈에 보기</p><h2 id="at-glance">3일 동선</h2></div>
       <div class="day-picks__grid" id="day-picks"></div>
+      <nav class="quick-jump" aria-label="바로 이동">
+        <a href="#choices">관광 후보 보기 <span aria-hidden="true">↗</span></a>
+        <a href="#stay">숙소 위치 보기 <span aria-hidden="true">↗</span></a>
+      </nav>
     </section>
 
     <section class="workspace" id="schedule" aria-labelledby="schedule-heading">
@@ -38,12 +42,12 @@
       <aside class="map-panel" aria-labelledby="map-heading">
         <div class="map-panel__head"><div><p class="eyebrow">이동 감 잡기</p><h2 id="map-heading">오늘의 동선</h2></div><span class="map-panel__day" id="map-day"></span></div>
         <div class="map-frame"><div class="map" id="map" aria-label="날짜별 개략 위치 지도"></div><svg class="map-fallback" id="map-fallback" viewBox="0 0 600 400" role="img" aria-label="춘천과 정선의 개략 위치도" hidden></svg></div>
-        <p class="map-caption">핀은 일부 대표 위치입니다. 식당·골프장·숙소는 아직 정해지지 않았어요. 선은 실제 도로가 아닙니다.</p>
+        <p class="map-caption">원은 장소가 정해지지 않은 권역, 점은 확인된 장소입니다. 선은 실제 도로가 아닙니다.</p>
         <div class="map-detail" id="map-detail"></div>
       </aside>
     </section>
 
-    <section class="choices" aria-labelledby="choices-heading">
+    <section class="choices" id="choices" aria-labelledby="choices-heading">
       <div class="section-heading"><p class="eyebrow">시간·체력 봐서</p><h2 id="choices-heading">관광은 이렇게 고르자</h2></div>
       <div class="choice-grid">
         <article class="choice choice--primary"><div class="choice__top"><span class="choice__icon" aria-hidden="true">↗</span><span class="pill">가까운 선택지</span></div><h3>만항재 드라이브</h3><p>차로 고개까지 올라가 풍경을 보는 코스. 등산 없이 다녀올 수 있어 둘째 날 골프 뒤에 넣기 좋습니다.</p><a href="https://jeongseon.go.kr/tour/jeongseontour/travelstory/manhang" target="_blank" rel="noopener">정선 관광 안내 보기 <span aria-hidden="true">↗</span></a></article>
@@ -52,13 +56,12 @@
       </div>
     </section>
 
-    <section class="stay" aria-labelledby="stay-heading">
-      <div class="stay__intro"><p class="eyebrow">숙소는 여기부터</p><h2 id="stay-heading">사북·고한 생활권 추천</h2><p>첫날 강원랜드 뒤 장보고 숙소에서 바베큐, 둘째 날에도 장을 보고 돌아오는 흐름에 맞습니다.</p></div>
+    <section class="stay" id="stay" aria-labelledby="stay-heading">
+      <div class="stay__intro"><p class="eyebrow">숙소는 여기부터</p><h2 id="stay-heading">사북·고한 생활권 추천</h2><p>첫날 강원랜드 뒤 장보고 숙소에서 바베큐, 둘째 날에도 장을 보고 돌아오는 흐름에 맞습니다.</p><p class="stay__condition">골프 장소가 사북·고한 근처일 때의 추천입니다. 필드 골프라면 골프장부터 확정한 뒤 숙소 위치를 다시 고르세요.</p></div>
       <div class="stay__content">
         <div class="stay__rank"><span class="stay__number">1</span><div><h3>사북읍 쪽 바베큐 가능 펜션</h3><p>강원랜드, 장보기, 식당, 스크린골프 접근을 우선할 때. 사북역·사북시장 생활권부터 찾아보세요.</p></div></div>
         <div class="stay__rank"><span class="stay__number">2</span><div><h3>고한읍 쪽 바베큐 가능 펜션</h3><p>만항재 드라이브와 하이원 주변 분위기를 더 원할 때. 고한역·하이원 입구 생활권이 차선입니다.</p></div></div>
         <div class="stay__check"><strong>예약 전에 확인</strong><span>4명 · 2박 연박</span><span>바베큐 시설과 이용 마감</span><span>차량 2대 주차</span><span>장보기 동선</span></div>
-        <p class="stay__caveat">골프가 필드라면 예약 골프장 위치를 먼저 확정하고 숙소 범위를 다시 좁혀야 합니다.</p>
         <a class="stay__link" href="https://www.jeongseon.go.kr/tour/jeongseontour/accommodation" target="_blank" rel="noopener">정선군 숙박 목록에서 사북읍·고한읍 보기 <span aria-hidden="true">↗</span></a>
       </div>
     </section>

@@ -8,3 +8,10 @@ main{max-width:1240px;margin:0 auto;padding:48px 24px 70px}.day-picks{margin-bot
 @media(max-width:900px){.hero__route{display:none}.workspace{grid-template-columns:1fr}.map-panel{position:static}.choice-grid{grid-template-columns:1fr 1fr}.stay{grid-template-columns:1fr;gap:16px}.stay__intro>p:last-child{max-width:none}}
 @media(max-width:620px){main{padding:34px 16px 55px}.hero{min-height:0}.hero__inner{padding:45px 16px 42px}.hero h1{font-size:2.85rem}.hero__lead br{display:none}.day-picks{margin-bottom:35px}.day-picks__grid{grid-template-columns:1fr;gap:9px}.day-pick{min-height:0;padding:14px 17px;gap:6px;border-radius:14px}.day-pick__route{font-size:1.18rem}.day-pick__summary{font-size:.82rem}.section-heading{margin-bottom:14px}.section-heading--inline{align-items:start;flex-direction:column;gap:3px}.schedule-panel,.map-panel{padding:18px;border-radius:17px}.workspace{gap:13px;margin-bottom:42px}.day-tab{flex:1;padding-inline:8px}.map,.map-fallback{height:270px}.choice-grid{grid-template-columns:1fr;gap:10px}.choice{min-height:0}.choices{margin-bottom:42px}.stay{padding:19px;border-radius:18px}.stay__content{padding:17px}.footer{padding-inline:16px}.stop__line{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.day-pick{transition:none}}
+/* 검수 반영: 카드의 동작과 아래 섹션으로 가는 길을 분명히 표시 */
+.day-pick__action{margin-top:auto;color:var(--green);font-size:.76rem;font-weight:800}
+.quick-jump{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.quick-jump a{display:inline-flex;align-items:center;gap:14px;text-decoration:none;background:#e6f2e9;border:1px solid #c7dfce;border-radius:100px;padding:8px 13px;color:var(--green);font-size:.82rem;font-weight:800}
+.quick-jump a:hover{background:#d5eadb}
+.stay__condition{margin:22px 0 0!important;padding:13px 15px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.32);border-radius:10px;color:#fff!important;font-size:.87rem!important;max-width:38ch!important}
+@media(max-width:620px){.day-pick__action{margin-top:2px}.quick-jump a{flex:1;justify-content:space-between}}

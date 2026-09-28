@@ -30,6 +30,7 @@
       button.appendChild(top);
       button.appendChild(node('strong', 'day-pick__route', day.short));
       button.appendChild(node('span', 'day-pick__summary', day.summary));
+      button.appendChild(node('span', 'day-pick__action', '상세 일정 보기 →'));
       wrap.appendChild(button);
     });
   }
@@ -88,12 +89,7 @@
         : '골프를 마친 장소에서 바로 인천·이천으로 나눠 출발합니다.');
     wrap.appendChild(tip);
   }
-  function routeStops() {
-    var keys = data.days[selected].stops.filter(function (s) { return s.place && s.status !== '선택 후보'; }).map(function (s) { return s.place; });
-    return keys.filter(function (key, i) { return i === 0 || key !== keys[i - 1]; });
-  }
   function renderMap() {
-    var day = data.days[selected], keys = routeStops();
     document.getElementById('map-day').textContent = (selected + 1) + '일차';
     var detail = document.getElementById('map-detail'); clear(detail);
     var headline = node('strong', '', selected === 0 ? '춘천 합류 → 사북·고한' : selected === 1 ? '사북·고한 주변에서 이동' : '숙소 → 골프 → 각자 귀가');
@@ -103,7 +99,7 @@
     if (!window.L) {
       document.getElementById('map').hidden = true;
       fallback.hidden = false;
-      drawFallback(fallback, keys);
+      drawFallback(fallback);
       return;
     }
     fallback.hidden = true;
@@ -115,23 +111,35 @@
       }).addTo(map);
     }
     mapLayers.forEach(function (layer) { map.removeLayer(layer); }); mapLayers = [];
-    var coords = keys.map(function (key) { var p = data.places[key]; return [p.lat, p.lon]; });
-    if (coords.length > 1) {
-      var line = L.polyline(coords, { color: colors[selected], weight: 4, opacity: .86, dashArray: '10 8' }).addTo(map);
-      mapLayers.push(line);
+    function area(lat, lon, radius, label) {
+      var layer = L.circle([lat, lon], { radius: radius, color: colors[selected], weight: 2, fillColor: colors[selected], fillOpacity: .17, dashArray: '5 6' }).addTo(map);
+      layer.bindTooltip(label + ' · 장소 미정', { direction: 'top' });
+      mapLayers.push(layer);
     }
-    keys.forEach(function (key, index) {
+    function pin(key, label) {
       var p = data.places[key];
       var marker = L.circleMarker([p.lat, p.lon], { radius: 10, color: '#fff', weight: 3, fillColor: colors[selected], fillOpacity: 1 }).addTo(map);
-      marker.bindTooltip((index + 1) + '. ' + p.name + (p.precise ? '' : ' · 대표 위치'), { direction: 'top' });
+      marker.bindTooltip(label || p.name, { direction: 'top' });
       mapLayers.push(marker);
-    });
-    var bounds = L.latLngBounds(coords);
-    if (selected === 1) bounds.extend([data.places.manhang.lat, data.places.manhang.lon]);
-    map.fitBounds(bounds.pad(selected === 0 ? .24 : 2), { maxZoom: selected === 0 ? 9 : 12 });
+    }
+    var local = data.places.lodging, land = data.places.kangwonland, chuncheon = data.places.chuncheon, manhang = data.places.manhang;
+    if (selected === 0) {
+      area(chuncheon.lat, chuncheon.lon, 6000, '춘천 닭갈비 식당 권역');
+      pin('kangwonland', '강원랜드');
+      area(local.lat, local.lon, 3300, '사북·고한 숙소·장보기 권역');
+      mapLayers.push(L.polyline([[chuncheon.lat, chuncheon.lon], [land.lat, land.lon]], { color: colors[selected], weight: 4, dashArray: '10 8' }).addTo(map));
+      map.fitBounds([[chuncheon.lat, chuncheon.lon], [local.lat, local.lon]], { padding: [38, 38], maxZoom: 9 });
+    } else {
+      area(local.lat, local.lon, 4000, '사북·고한 점심·골프·숙소 권역');
+      if (selected === 1) {
+        pin('manhang', '만항재 · 선택 관광');
+        mapLayers.push(L.polyline([[local.lat, local.lon], [manhang.lat, manhang.lon]], { color: colors[selected], weight: 3, opacity: .65, dashArray: '5 8' }).addTo(map));
+        map.fitBounds([[local.lat, local.lon], [manhang.lat, manhang.lon]], { padding: [60, 60], maxZoom: 11 });
+      } else map.setView([local.lat, local.lon], 11);
+    }
     setTimeout(function () { map.invalidateSize(); }, 0);
   }
-  function drawFallback(svg, keys) {
+  function drawFallback(svg) {
     clear(svg);
     var ns = 'http://www.w3.org/2000/svg';
     function s(tag, attrs, label) {
@@ -142,13 +150,19 @@
     }
     s('rect', { x: 0, y: 0, width: 600, height: 400, fill: '#e8eee8' });
     s('path', { d: 'M65 85 C190 50 270 140 362 144 S492 225 550 260', fill: 'none', stroke: '#aec2b1', 'stroke-width': 26, 'stroke-linecap': 'round' });
-    var points = selected === 0 ? [[90, 100], [435, 260], [463, 278], [478, 286]] : [[420, 240], [457, 268], [484, 286], [440, 245]];
-    var used = keys.map(function (key, i) { return { key: key, point: points[i] || [460, 280] }; });
-    if (used.length > 1) s('polyline', { points: used.map(function (x) { return x.point.join(','); }).join(' '), fill: 'none', stroke: colors[selected], 'stroke-width': 5, 'stroke-dasharray': '10 8', 'stroke-linecap': 'round' });
-    used.forEach(function (x, i) {
-      s('circle', { cx: x.point[0], cy: x.point[1], r: 14, fill: colors[selected], stroke: '#fff', 'stroke-width': 4 });
-      s('text', { x: x.point[0], y: x.point[1] - 24, 'text-anchor': 'middle', fill: '#17362c', 'font-size': 15, 'font-weight': 700 }, data.places[x.key].name);
-    });
+    if (selected === 0) {
+      s('line', { x1: 110, y1: 105, x2: 455, y2: 270, stroke: colors[selected], 'stroke-width': 5, 'stroke-dasharray': '10 8' });
+      s('circle', { cx: 110, cy: 105, r: 40, fill: '#f9c0a8', stroke: colors[selected], 'stroke-width': 2, 'stroke-dasharray': '5 6' });
+      s('text', { x: 110, y: 110, 'text-anchor': 'middle', fill: '#17362c', 'font-size': 15, 'font-weight': 700 }, '춘천 권역');
+      s('circle', { cx: 455, cy: 270, r: 13, fill: colors[selected], stroke: '#fff', 'stroke-width': 3 });
+      s('text', { x: 455, y: 236, 'text-anchor': 'middle', fill: '#17362c', 'font-size': 15, 'font-weight': 700 }, '강원랜드');
+    }
+    s('circle', { cx: 480, cy: 305, r: 48, fill: '#b9d9c7', stroke: colors[selected], 'stroke-width': 2, 'stroke-dasharray': '5 6' });
+    s('text', { x: 480, y: 310, 'text-anchor': 'middle', fill: '#17362c', 'font-size': 14, 'font-weight': 700 }, '사북·고한 권역');
+    if (selected === 1) {
+      s('line', { x1: 480, y1: 305, x2: 540, y2: 355, stroke: colors[selected], 'stroke-width': 4, 'stroke-dasharray': '5 8' });
+      s('text', { x: 530, y: 380, 'text-anchor': 'middle', fill: '#17362c', 'font-size': 13, 'font-weight': 700 }, '만항재 · 선택');
+    }
     s('text', { x: 28, y: 374, fill: '#52685c', 'font-size': 13 }, '오프라인 개략도 · 실제 도로 아님');
   }
   function render() { renderPicks(); renderTabs(); renderDay(); renderMap(); }
