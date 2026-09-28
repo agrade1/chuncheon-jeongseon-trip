@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>춘천·정선 2박3일 비교 보드</title>
+  <meta name="description" content="2026-10-16~18 인천 출발 춘천/정선 여행의 1·2·3안을 지도와 일정으로 비교하는 로컬 웹앱">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2714%27 fill=%27%231f5f8b%27/%3E%3Cpath d=%27M8 20 L14 12 L19 17 L24 10%27 stroke=%27white%27 stroke-width=%273%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+        onerror="window.__leafletCssFailed=true">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#itinerary">일정으로 건너뛰기</a>
+
+  <header class="app-header">
+    <div class="app-header__title">
+      <h1>춘천 · 정선 2박3일 비교 보드</h1>
+      <p class="app-header__meta">
+        <span class="chip chip--date">2026-10-16(금) ~ 10-18(일)</span>
+        <span class="chip">인천 출발 3명 · 이천 출발 1명</span>
+        <span class="chip chip--warn">계획용 추정 · 교통상황 미반영</span>
+      </p>
+    </div>
+    <p class="app-header__note">
+      인천 출발 3명과 이천 출발 1명이 첫날 점심에 합류하고, 그 뒤는 2대·2명씩 동승, 귀가 때 다시 인천 3명 / 이천 1명으로 나뉩니다.
+      운전 시간·거리는 구간별 어림값의 합계이며 인천 차·이천 차 관점을 따로 계산합니다. 실시간 길찾기가 아니며, 영업시간·예약·요금은 확정하지 않았습니다.
+      「제안」「후보」로 표시된 장소는 이 보드에서 새로 제안한 것이고 아직 아무것도 예약되지 않았습니다.
+    </p>
+  </header>
+
+  <section class="plans" aria-labelledby="plans-heading">
+    <h2 id="plans-heading" class="visually-hidden">여행안 선택</h2>
+    <div class="plan-tabs" role="tablist" aria-label="여행안 비교" id="plan-tabs"></div>
+  </section>
+
+  <main class="board">
+    <section class="itinerary" id="itinerary" aria-labelledby="itin-heading">
+      <div class="itinerary__head">
+        <h2 id="itin-heading" class="itinerary__title">일정</h2>
+        <button type="button" class="btn btn--ghost" id="btn-overview" aria-pressed="true">전체 보기</button>
+      </div>
+
+      <div class="plan-brief" id="plan-brief"></div>
+
+      <fieldset class="variants" id="variants">
+        <legend>현실적 대체안 (켜면 일정·지도·합계가 함께 바뀜)</legend>
+        <div id="variant-list"></div>
+      </fieldset>
+
+      <div class="days" id="days"></div>
+
+      <div class="totals" id="totals" aria-live="polite"></div>
+    </section>
+
+    <section class="mapcol" aria-labelledby="map-heading">
+      <div class="mapcol__head">
+        <h2 id="map-heading" class="mapcol__title">지도</h2>
+        <div class="mapcol__controls">
+          <label class="switch">
+            <input type="checkbox" id="toggle-schematic">
+            <span>개략도로 보기</span>
+          </label>
+        </div>
+      </div>
+      <div class="map-notice" id="map-notice" role="status">
+        지도 위 선은 <strong>도로 길찾기 결과가 아닌 개략 동선</strong>입니다. 실제 경로는 아래 길찾기 링크로 확인하세요.
+      </div>
+      <div class="map-wrap">
+        <div id="map" class="map" role="img" aria-label="선택한 여행안의 개략 동선 지도"></div>
+        <svg id="map-svg" class="map map--svg" viewBox="0 0 800 600" role="img" aria-label="개략 위치도 (타일 없이 그린 지도)" hidden></svg>
+        <div class="map-fallback-banner" id="map-fallback-banner" hidden></div>
+      </div>
+      <div class="legend" aria-label="범례">
+        <span class="legend__item"><span class="legend__swatch legend__swatch--d1"></span>10/16 금</span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--d2"></span>10/17 토</span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--d3"></span>10/18 일</span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--sel"></span>선택 구간</span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--solid"></span>실선: 공통 (2대 동승)</span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--dash"></span>긴 점선: 인천 차</span>
+        <span class="legend__item"><span class="legend__swatch legend__swatch--dot"></span>짧은 점선: 이천 차</span>
+      </div>
+      <div class="detail" id="detail" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>데이터 출처: 그룹 대화 요약(날짜·스크린골프·강원랜드 합의, 춘천 닭갈비 희망, 정선 직행 제안, 하이원 근처 숙소 제안), 공유 시트 초안, 출발·합류·귀가 조건(인천 3명·이천 1명). 원문 대화·개인 정보는 포함하지 않았습니다.</p>
+    <p>지도: <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">© OpenStreetMap 기여자</a> (Leaflet). 네트워크 없이 열면 개략도가 대신 표시됩니다.</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+          onerror="window.__leafletJsFailed=true"></script>
+  <script src="js/data.js"></script>
+  <script src="js/logic.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
