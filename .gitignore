@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 KakaoTalk_Chat_*.csv
 .trip-edit-token
+.local/

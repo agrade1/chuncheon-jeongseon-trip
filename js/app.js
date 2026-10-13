@@ -1,8 +1,17 @@
 (function () {
   'use strict';
-  var apiBase = 'https://aqhrtipddlxejwjpxdrf.supabase.co';
+  // 카카오 SDK가 등록된 GitHub 주소에서 화면을 열고, 저장 서버는 맥으로 유지한다.
+  if (/\.trycloudflare\.com$/.test(location.hostname)) {
+    var sharedParams = new URLSearchParams(location.hash.slice(1));
+    sharedParams.set('server', location.origin);
+    location.replace('https://agrade1.github.io/chuncheon-jeongseon-trip/#' + sharedParams.toString());
+    return;
+  }
+  var supabaseBase = 'https://aqhrtipddlxejwjpxdrf.supabase.co';
   var publishableKey = 'sb_publishable_EMOU9uf0ikNXGXuOFMQrnA__UaUqrB9';
-  var canEdit = true;
+  var openedHash = hashParams();
+  var backend = chooseBackend();
+  var canEdit = false, liveStops = null, loadError = '', loadSerial = 0, retryTimer = null;
   var selectedDay = 0, stops = [], map = null, mapLayers = [], pendingPin = null, mapReady = false;
   var editingId = null, draftLocation = null, picking = false, routeSerial = 0;
   var routeCache = new Map();
@@ -19,6 +28,25 @@
     return item;
   }
   function clear(item) { item.replaceChildren(); }
+  function hashParams() { return new URLSearchParams(location.hash.slice(1)); }
+  function isLoopback(host) { return host === 'localhost' || host === '127.0.0.1' || host === '[::1]'; }
+  // 기본은 Supabase. 맥 서버에서 열었거나 #server=https주소&key=토큰 링크면 맥 서버를 쓴다.
+  function chooseBackend() {
+    var key = openedHash.get('key') || '', server = openedHash.get('server');
+    if (isLoopback(location.hostname) || /\.trycloudflare\.com$/.test(location.hostname)) return { kind: 'local', base: '', key: key, loopback: isLoopback(location.hostname) };
+    if (server === null) return { kind: 'supabase' };
+    try {
+      var url = new URL(server);
+      if (url.protocol === 'https:' || (url.protocol === 'http:' && isLoopback(url.hostname))) return { kind: 'local', base: url.origin, key: key, loopback: false };
+    } catch (_) {}
+    return { kind: 'local', base: null, key: '' };
+  }
+  async function localKey() {
+    try {
+      var res = await fetch('/api/config', { cache: 'no-store' });
+      return res.ok ? (await res.json()).editToken || '' : '';
+    } catch (_) { return ''; }
+  }
   function dayStops(day) { return stops.filter(function (stop) { return stop.day_index === day; }).sort(function (a, b) { return a.position - b.position; }); }
   function setStatus(message, error) {
     var item = byId('sync-status'); item.textContent = message; item.classList.toggle('is-error', Boolean(error));
@@ -33,25 +61,44 @@
     });
     return output;
   }
+  // 불러오기에 실패하면 편집을 잠그고, 마지막으로 불러온 일정(없으면 기본 일정)을 읽기 전용으로 보여 준다.
   async function loadStops() {
+    var serial = ++loadSerial;
+    clearTimeout(retryTimer);
     try {
-      var res = await fetch(apiBase + '/rest/v1/trip_stops?trip_key=eq.chuncheon-2026&select=*&order=day_index.asc,position.asc', { headers: { apikey: publishableKey }, cache: 'no-store' });
-      if (!res.ok) throw new Error('일정을 불러오지 못했어요 (' + res.status + ')');
-      stops = await res.json();
-      setStatus(canEdit ? '편집 가능 · 모두에게 바로 반영' : '공유 일정');
+      var res;
+      if (backend.kind === 'supabase') {
+        res = await fetch(supabaseBase + '/rest/v1/trip_stops?trip_key=eq.chuncheon-2026&select=*&order=day_index.asc,position.asc', { headers: { apikey: publishableKey }, cache: 'no-store' });
+      } else {
+        if (backend.base === null) throw new Error('링크의 server 주소가 올바르지 않아요. 받은 링크를 다시 확인해 주세요.');
+        if (backend.loopback && !backend.key) backend.key = await localKey();
+        res = await fetch(backend.base + '/api/stops', { cache: 'no-store' });
+      }
+      if (!res.ok) throw new Error('일정을 불러오지 못했어요 (' + res.status + ').');
+      var rows = await res.json();
+      if (!Array.isArray(rows)) throw new Error('일정 응답 형식이 올바르지 않아요.');
+      if (serial !== loadSerial) return;
+      stops = liveStops = rows; loadError = '';
+      canEdit = backend.kind === 'supabase' || Boolean(backend.key);
+      setStatus(canEdit ? '편집 가능 · 모두에게 바로 반영' : '보기 전용 · 편집 링크로 열면 수정할 수 있어요');
     } catch (error) {
-      stops = fallbackStops();
-      setStatus('연결 오류 · 저장된 기본 일정 표시', true);
-      if (canEdit) byId('add-stop').disabled = true;
+      if (serial !== loadSerial) return;
+      canEdit = false;
+      stops = liveStops || fallbackStops();
+      loadError = error.constructor === Error ? error.message : '일정 서버에 연결하지 못했어요.';
+      setStatus(liveStops ? '연결 끊김 · 편집 잠김' : '연결 오류 · 기본 일정 표시 · 편집 잠김', true);
+      if (backend.base !== null) retryTimer = setTimeout(loadStops, 15000);
     }
     render();
   }
   async function callApi(payload) {
-    var res = await fetch(apiBase + '/functions/v1/trip-api', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: publishableKey },
-      body: JSON.stringify(payload)
-    });
+    if (!canEdit) throw new Error('지금은 저장할 수 없어요. 다시 연결되면 저장해 주세요.');
+    var target = backend.kind === 'supabase'
+      ? { url: supabaseBase + '/functions/v1/trip-api', headers: { 'Content-Type': 'application/json', apikey: publishableKey } }
+      : { url: backend.base + '/api/actions', headers: { 'Content-Type': 'application/json', 'x-trip-edit-token': backend.key } };
+    var res;
+    try { res = await fetch(target.url, { method: 'POST', headers: target.headers, body: JSON.stringify(payload) }); }
+    catch (_) { loadStops(); throw new Error('일정 서버에 연결하지 못해 저장하지 않았어요. 다시 연결되면 저장해 주세요.'); }
     var body = await res.json().catch(function () { return {}; });
     if (!res.ok) throw new Error(body.error || '요청을 처리하지 못했어요.');
     return body;
@@ -95,6 +142,16 @@
     head.appendChild(el('span', 'day-content__date', day.date));
     head.appendChild(el('h3', '', day.name));
     wrap.appendChild(head);
+    if (loadError) {
+      var notice = el('p', 'empty-day', loadError + ' 지금 보이는 일정은 ' + (liveStops ? '마지막으로 불러온 내용' : '최신이 아닌 기본 일정') + '이라 편집이 잠겨 있어요.');
+      notice.setAttribute('role', 'alert');
+      if (backend.base !== null) {
+        notice.appendChild(document.createTextNode(' 15초마다 다시 연결하며, 계속 안 되면 새로고침해 주세요. '));
+        var retry = el('button', 'secondary-button', '지금 다시 연결'); retry.type = 'button'; retry.addEventListener('click', loadStops);
+        notice.appendChild(retry);
+      }
+      wrap.appendChild(notice);
+    }
     if (!list.length) wrap.appendChild(el('p', 'empty-day', '아직 일정이 없어요.'));
     var ol = el('ol', 'stops');
     list.forEach(function (stop, index) {
@@ -185,7 +242,7 @@
     var routePoints = located.filter(function (x) { return x.stop.include_in_route; }).map(function (x) { return x.stop; });
     var detail = byId('map-detail'); clear(detail);
     detail.appendChild(el('strong', '', located.length + '곳 위치 지정 · ' + (list.length - located.length) + '곳 미정'));
-    detail.appendChild(el('p', '', '핀 번호는 일정 순서예요. 핀을 누르면 수정하고, 빈 지도를 누르면 새 일정을 추가할 수 있어요.'));
+    detail.appendChild(el('p', '', '핀 번호는 일정 순서예요. 핀을 누르면 일정을 수정할 수 있어요.'));
     byId('map-caption').textContent = routePoints.length < 2 ? '도로 경로는 위치가 정해진 장소 2곳부터 보여요.' : '도로 경로 계산 중…';
     if (!mapReady) { byId('map').hidden = true; byId('map-fallback').hidden = false; return; }
     byId('map').hidden = false;
@@ -194,9 +251,8 @@
       map = new kakao.maps.Map(byId('map'), { center: latLng(37.21, 128.82), level: 8 });
       map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
       kakao.maps.event.addListener(map, 'click', function (event) {
-        if (!canEdit) return;
+        if (!canEdit || !picking) return;
         var picked = { lat: Number(event.latLng.getLat().toFixed(6)), lon: Number(event.latLng.getLng().toFixed(6)) };
-        if (byId('editor').hidden) openEditor(null);
         draftLocation = picked;
         picking = false; byId('map').classList.remove('is-picking'); byId('pick-on-map').textContent = '지도에서 찍기';
         updateLocation(); showDraftPin(); byId('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -213,7 +269,7 @@
     if (!byId('editor').hidden) showDraftPin();
     setTimeout(function () { map.relayout(); }, 0);
   }
-  function render() { renderTabs(); renderDay(); renderMap(); }
+  function render() { byId('add-stop').hidden = !canEdit; renderTabs(); renderDay(); renderMap(); }
   function updateLocation() {
     byId('selected-location').textContent = draftLocation ? '📍 위치 지정됨 · ' + draftLocation.lat.toFixed(5) + ', ' + draftLocation.lon.toFixed(5) : '위치 미지정';
   }
@@ -270,12 +326,12 @@
     var ids = list.map(function (x) { return x.id; });
     var temp = ids[index]; ids[index] = ids[next]; ids[next] = temp;
     try { await callApi({ action: 'reorder', day_index: selectedDay, ids: ids }); await loadStops(); }
-    catch (error) { alert(error.message); }
+    catch (error) { alert(error.message); loadStops(); }
   }
   async function removeStop(stop) {
     if (!confirm('“' + stop.title + '” 일정을 삭제할까요?')) return;
     try { await callApi({ action: 'delete', id: stop.id }); await loadStops(); }
-    catch (error) { alert(error.message); }
+    catch (error) { alert(error.message); loadStops(); }
   }
   async function searchPlace() {
     var query = byId('place-query').value.trim(), results = byId('search-results');
@@ -308,7 +364,11 @@
     } catch (error) { clear(results); results.appendChild(el('p', '', error.message)); }
     finally { button.disabled = false; }
   }
-  byId('add-stop').hidden = !canEdit;
+  document.querySelector('.skip-link').addEventListener('click', function (event) {
+    event.preventDefault();
+    byId('schedule').scrollIntoView({ block: 'start' });
+    byId('schedule').focus({ preventScroll: true });
+  });
   byId('add-stop').addEventListener('click', function () { openEditor(null); });
   byId('cancel-edit').addEventListener('click', closeEditor);
   byId('stop-form').addEventListener('submit', saveStop);
@@ -324,5 +384,11 @@
   if (window.kakao && window.kakao.maps) {
     window.kakao.maps.load(function () { mapReady = true; renderMap(); });
   }
+  // 같은 탭에서 다른 서버·편집 링크로 바뀌면 이전 저장소에 쓰지 않도록 새로 연다.
+  window.addEventListener('hashchange', function () {
+    var next = hashParams();
+    if (next.get('server') !== openedHash.get('server') || next.get('key') !== openedHash.get('key')) location.reload();
+  });
+  window.addEventListener('online', function () { if (loadError) loadStops(); });
   loadStops();
 })();
